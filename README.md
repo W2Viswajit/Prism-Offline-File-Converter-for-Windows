@@ -1,1 +1,1 @@
-# Prism-Offline-File-Converter-for-Windows.
+# Prism-Offline-File-Converter-for-Windows
