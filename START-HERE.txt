@@ -1,0 +1,17 @@
+PRISM v0.1.1 - STARTUP DIAGNOSTICS AND RIGHT-CLICK ENTRY
+
+1. Extract this entire package into your Prism folder, replacing old source files.
+   Keep the existing .venv folder; do not delete it. Quit any running Prism first.
+2. Run Setup.bat (Python 3.12 with launcher required).
+3. Run Start-Prism.bat. Keep its console open while the app runs.
+   If it fails, send the error screenshot; also try Debug-Prism.bat.
+4. Run Install-Right-Click.bat once (no administrator rights needed).
+5. Right-click ONE image/PDF/TXT/DOCX file > Show more options > Open with Prism.
+6. The selected file opens in Prism. Choose an action or Open wheel.
+
+Keep the app folder in this location. Rerun menu installation if you move it.
+Remove-Right-Click.bat removes only Prism's menu entries.
+Startup log: %LOCALAPPDATA%\Prism\logs\startup.log
+
+No prebuilt EXE is included. Source, launchers and a Windows EXE build recipe
+are included. The exact cause of your previous startup failure is not known yet.
