@@ -1,0 +1,52 @@
+Prism setup using 3.13.3 at C:\Python313\python.exe
+Running: C:\Python313\python.exe -m venv C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\.venv
+Running: C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\.venv\Scripts\python.exe -m pip install --upgrade pip
+Requirement already satisfied: pip in c:\users\viswajit\downloads\prism-windows-v0.1.2\prism\.venv\lib\site-packages (25.0.1)
+Collecting pip
+  Using cached pip-26.2.1-py3-none-any.whl.metadata (4.6 kB)
+Using cached pip-26.2.1-py3-none-any.whl (1.8 MB)
+Installing collected packages: pip
+  Attempting uninstall: pip
+    Found existing installation: pip 25.0.1
+    Uninstalling pip-25.0.1:
+      Successfully uninstalled pip-25.0.1
+Successfully installed pip-26.2.1
+Running: C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\.venv\Scripts\python.exe -m pip install --only-binary=:all: -r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt
+Collecting PySide6==6.8.3 (from -r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 1))
+  Using cached PySide6-6.8.3-cp39-abi3-win_amd64.whl.metadata (5.7 kB)
+Collecting Pillow==11.3.0 (from -r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 2))
+  Using cached pillow-11.3.0-cp313-cp313-win_amd64.whl.metadata (9.2 kB)
+Collecting pypdf==5.9.0 (from -r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 3))
+  Using cached pypdf-5.9.0-py3-none-any.whl.metadata (7.1 kB)
+Collecting pypdfium2==4.30.0 (from -r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 4))
+  Using cached pypdfium2-4.30.0-py3-none-win_amd64.whl.metadata (48 kB)
+Collecting reportlab==4.4.3 (from -r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 5))
+  Using cached reportlab-4.4.3-py3-none-any.whl.metadata (1.7 kB)
+Collecting pywin32==311 (from -r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 6))
+  Using cached pywin32-311-cp313-cp313-win_amd64.whl.metadata (10 kB)
+Collecting shiboken6==6.8.3 (from PySide6==6.8.3->-r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 1))
+  Using cached shiboken6-6.8.3-cp39-abi3-win_amd64.whl.metadata (2.8 kB)
+Collecting PySide6-Essentials==6.8.3 (from PySide6==6.8.3->-r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 1))
+  Using cached PySide6_Essentials-6.8.3-cp39-abi3-win_amd64.whl.metadata (4.1 kB)
+Collecting PySide6-Addons==6.8.3 (from PySide6==6.8.3->-r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 1))
+  Using cached PySide6_Addons-6.8.3-cp39-abi3-win_amd64.whl.metadata (4.4 kB)
+Collecting charset-normalizer (from reportlab==4.4.3->-r C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\requirements.txt (line 5))
+  Using cached charset_normalizer-3.5.2-cp313-cp313-win_amd64.whl.metadata (47 kB)
+Using cached PySide6-6.8.3-cp39-abi3-win_amd64.whl (561 kB)
+Using cached pillow-11.3.0-cp313-cp313-win_amd64.whl (7.0 MB)
+Using cached pypdf-5.9.0-py3-none-any.whl (313 kB)
+Using cached pypdfium2-4.30.0-py3-none-win_amd64.whl (2.9 MB)
+Using cached reportlab-4.4.3-py3-none-any.whl (2.0 MB)
+Using cached pywin32-311-cp313-cp313-win_amd64.whl (9.5 MB)
+Using cached PySide6_Addons-6.8.3-cp39-abi3-win_amd64.whl (127.9 MB)
+Using cached PySide6_Essentials-6.8.3-cp39-abi3-win_amd64.whl (72.2 MB)
+Using cached shiboken6-6.8.3-cp39-abi3-win_amd64.whl (1.2 MB)
+Using cached charset_normalizer-3.5.2-cp313-cp313-win_amd64.whl (206 kB)
+Installing collected packages: pywin32, shiboken6, pypdfium2, pypdf, Pillow, charset-normalizer, reportlab, PySide6-Essentials, PySide6-Addons, PySide6
+
+Successfully installed Pillow-11.3.0 PySide6-6.8.3 PySide6-Addons-6.8.3 PySide6-Essentials-6.8.3 charset-normalizer-3.5.2 pypdf-5.9.0 pypdfium2-4.30.0 pywin32-311 reportlab-4.4.3 shiboken6-6.8.3
+Running: C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\.venv\Scripts\python.exe -m pip check
+No broken requirements found.
+Running: C:\Users\viswajit\Downloads\Prism-Windows-v0.1.2\Prism\.venv\Scripts\python.exe -c "import PySide6.QtWidgets, PIL, pypdf, pypdfium2, reportlab, win32com.client; import prism.ui; print(\"Prism imports OK\")"
+Prism imports OK
+Ready. Open Start-Prism.bat. For the Explorer entry, run Install-Right-Click.bat.

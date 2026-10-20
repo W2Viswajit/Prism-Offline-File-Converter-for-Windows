@@ -1,13 +1,22 @@
-# Prism for Windows — v0.1.1 beta
+# Prism for Windows — v0.1.2 beta
 
 A local desktop file utility built for Viswajit: a Fluent-inspired radial menu,
 image conversion and cropping, PDF page tools, text extraction and optional OCR.
 No accounts, cloud processing, sharing, video or audio features.
 
+## Python 3.13.3 fix in v0.1.2
+
+The old setup required `py -3.12`, preventing startup when only Python 3.13.3
+was installed. Setup now accepts standard x64 Python 3.12/3.13, including
+`python` on PATH without the launcher. It logs to `setup.log`, checks installed
+dependencies, and verifies imports before reporting Ready. Optional OCR now
+uses RapidOCR 3.4.0 with ONNX Runtime 1.23.2, replacing the package that excluded
+Python 3.13. Extract into a new folder; do not copy an old `.venv`.
+
 ## Start on your Windows 11 laptop
 
-1. Install **64-bit Python 3.12** from https://www.python.org/downloads/windows/.
-   Include the Python launcher (`py`) in the installation options.
+1. Install **64-bit x64 Python 3.12 or 3.13 (3.13.3 supported)** from https://www.python.org/downloads/windows/.
+   Setup accepts `python` on PATH or the optional Python launcher (`py`).
 2. Extract this entire ZIP to a writable folder such as `Documents\Prism`.
    Do not run it from inside the ZIP or from `Program Files`.
 3. Double-click **Setup.bat**. Internet is needed once to download dependencies.
@@ -48,7 +57,7 @@ Closing the main window normally leaves Prism in the system tray. Double-click
 its tray icon to reopen. Right-click → Quit exits. Settings can change this and
 turn off Explorer integration. No autostart is installed. The right-click command launches a new Prism window; quit old instances from the tray when finished.
 
-### Right-click entry (new in v0.1.1)
+### Right-click entry (new in v0.1.2)
 
 After Setup, double-click **Install-Right-Click.bat**. This registers an entry for
 supported extensions for your Windows user only; administrator rights are not
@@ -136,7 +145,7 @@ needs Windows packaging validation and dependency-license review.
 
 ## Troubleshooting
 
-- Setup cannot find Python: install 64-bit Python **3.12** with the launcher.
+- Setup cannot find Python: use 64-bit x64 Python **3.12 or 3.13** on PATH or with the launcher.
 - Setup download error: check connectivity, run Setup again; it reuses `.venv`.
 - App does not appear: run **Debug-Prism.bat** and copy the displayed error.
 - Wheel does not appear: ensure Prism is running, use a File Explorer window,
@@ -167,7 +176,7 @@ Source structure: `prism/engine.py` is conversion logic; `ui.py` is app flow;
 `widgets.py` contains the wheel/editors; `windows.py` is Explorer/DWM integration.
 This project is a fresh implementation, not a fork of the community Tangerine app.
 
-## Startup diagnosis in v0.1.1
+## Startup diagnosis in v0.1.2
 
 The visible launcher now reports Python errors instead of using a silent launch.
 `main.py` logs startup to `%LOCALAPPDATA%\Prism\logs\startup.log`.

@@ -34,3 +34,24 @@ Use README's sample walkthrough for the Windows acceptance check.
 - The actual startup error on the user's laptop is not yet available. This
   update improves diagnosis; it does not claim to fix an identified root cause.
 - Windows registry behavior and launch still require the user's laptop check.
+
+## v0.1.2 — 20 October 2026: Python 3.13.3
+
+- User screenshot confirms Python 3.13.3 and no private environment. The old
+  Setup.bat required `py -3.12`; it exited before installing Prism.
+- Setup now accepts standard x64 Python 3.12/3.13 via PATH or the launcher,
+  logs output, checks dependencies and imports before reporting Ready.
+- Downloaded compatible Windows x64 CPython 3.13 wheels for every base
+  dependency, pywin32 311, PyInstaller 6.16.0, and the updated OCR dependencies.
+  This checks distribution availability, not Windows execution.
+- Installed the exact Python 3.13.3 version on Linux and all base/OCR dependencies.
+  All 30 existing engine, Qt offscreen, and mocked-registry tests passed.
+- RapidOCR 1.4.4 excluded Python 3.13. Migrated to rapidocr 3.4.0 and
+  onnxruntime 1.23.2, adapted the result API, and used a local font to avoid
+  a first-use font download. CPU OCR threads are bounded.
+- Dependency consistency check passed. Setup interpreter check accepts 3.13.3.
+- Native Windows batch execution, Explorer entry and EXE build remain untested:
+  there is no Windows runtime here. No prebuilt EXE is included.
+- New optional OCR integration test passed on 3.13.3 with socket connections
+  blocked; both sample lines matched exactly. Total: 31 tests passed across
+  the existing-suite run and the added OCR test run.

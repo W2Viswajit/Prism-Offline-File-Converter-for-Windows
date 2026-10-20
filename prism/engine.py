@@ -211,13 +211,20 @@ def find_office():
 
 def ocr(path,cancel):
     try:
-        from rapidocr_onnxruntime import RapidOCR
+        from rapidocr import RapidOCR
         import numpy as np
     except ImportError as e: raise ValueError('OCR is optional. Run Install-OCR.bat once, then restart Prism.') from e
-    engine=RapidOCR(); texts=[]
+    fontpaths=[Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts/arial.ttf',
+               Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')]
+    font=next((f for f in fontpaths if f.exists()),None)
+    if font is None: raise ValueError('OCR requires a local TrueType font (Windows Arial).')
+    engine=RapidOCR(params={'Global.font_path':str(font),
+                           'EngineConfig.onnxruntime.intra_op_num_threads':2,
+                           'EngineConfig.onnxruntime.inter_op_num_threads':1})
+    texts=[]
     def recognize(im):
-        check(cancel); result,_=engine(np.asarray(rgb(im)))
-        texts.append('\n'.join(row[1] for row in (result or [])))
+        check(cancel); result=engine(np.asarray(rgb(im)))
+        texts.append('\n'.join(result.txts or []))
     if path.suffix.lower()=='.pdf':
         import pypdfium2 as pdfium
         reader(path); doc=pdfium.PdfDocument(str(path))

@@ -1,25 +1,29 @@
 @echo off
 setlocal
 cd /d "%~dp0"
-echo Prism - first-time setup
-where py >nul 2>nul
-if errorlevel 1 goto no_python
-py -3.12 --version >nul 2>nul
-if errorlevel 1 goto no_python
-if not exist ".venv\Scripts\python.exe" py -3.12 -m venv .venv
-if errorlevel 1 goto failed
-".venv\Scripts\python.exe" -m pip install -r requirements.txt
-if errorlevel 1 goto failed
+echo Prism - Python 3.12 / 3.13 setup
+python "%~dp0setup_prism.py" --check >nul 2>nul
+if not errorlevel 1 goto use_python
+py -3.13 "%~dp0setup_prism.py" --check >nul 2>nul
+if not errorlevel 1 goto use_313
+py -3.12 "%~dp0setup_prism.py" --check >nul 2>nul
+if not errorlevel 1 goto use_312
+echo Could not find compatible 64-bit x64 Python 3.12 or 3.13.
+echo If Python 3.13.3 is installed, enable its PATH option or Python launcher.
+pause
+exit /b 1
+:use_python
+python -u "%~dp0setup_prism.py"
+goto finished
+:use_313
+py -3.13 -u "%~dp0setup_prism.py"
+goto finished
+:use_312
+py -3.12 -u "%~dp0setup_prism.py"
+:finished
+set "PRISM_SETUP_EXIT=%errorlevel%"
 echo.
-echo Ready. Double-click Start-Prism.bat to open Prism.
+echo Setup exit code: %PRISM_SETUP_EXIT%
+echo Detailed output is saved in setup.log in this folder.
 pause
-exit /b 0
-:no_python
-echo Install Python 3.12 for Windows from https://www.python.org/downloads/windows/
-echo Include the Python launcher during installation, then run Setup.bat again.
-pause
-exit /b 1
-:failed
-echo Setup failed. Check the error above and your internet connection.
-pause
-exit /b 1
+exit /b %PRISM_SETUP_EXIT%

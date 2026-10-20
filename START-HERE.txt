@@ -1,8 +1,8 @@
-PRISM v0.1.1 - STARTUP DIAGNOSTICS AND RIGHT-CLICK ENTRY
+PRISM v0.1.2 - PYTHON 3.13.3 SETUP FIX
 
-1. Extract this entire package into your Prism folder, replacing old source files.
-   Keep the existing .venv folder; do not delete it. Quit any running Prism first.
-2. Run Setup.bat (Python 3.12 with launcher required).
+1. Quit Prism. Extract this entire package into a NEW folder.
+   Do not copy an old .venv folder.
+2. Run Setup.bat (64-bit x64 Python 3.12 or 3.13).
 3. Run Start-Prism.bat. Keep its console open while the app runs.
    If it fails, send the error screenshot; also try Debug-Prism.bat.
 4. Run Install-Right-Click.bat once (no administrator rights needed).
@@ -14,4 +14,5 @@ Remove-Right-Click.bat removes only Prism's menu entries.
 Startup log: %LOCALAPPDATA%\Prism\logs\startup.log
 
 No prebuilt EXE is included. Source, launchers and a Windows EXE build recipe
-are included. The exact cause of your previous startup failure is not known yet.
+are included. This fixes the old setup requiring Python 3.12 when you have 3.13.3.
+Setup output is saved in setup.log. Windows Explorer still needs a laptop check.

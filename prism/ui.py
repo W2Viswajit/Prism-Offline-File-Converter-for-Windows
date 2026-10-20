@@ -113,7 +113,7 @@ class Window(QMainWindow):
         self.open_result=QPushButton('Open result'); self.open_result.clicked.connect(self.open_output); self.open_result.setEnabled(False); resultrow.addWidget(self.open_result)
         self.folder_result=QPushButton('Show output folder'); self.folder_result.clicked.connect(self.open_folder); self.folder_result.setEnabled(False); resultrow.addWidget(self.folder_result)
         self.cancel=QPushButton('Cancel'); self.cancel.clicked.connect(self.cancel_job); self.cancel.hide(); resultrow.addWidget(self.cancel); resultrow.addStretch()
-        foot=QLabel('Explorer: Ctrl + Alt + Space   •   Shift-drag: experimental   •   v0.1.1'); foot.setObjectName('muted'); resultrow.addWidget(foot)
+        foot=QLabel('Explorer: Ctrl + Alt + Space   •   Shift-drag: experimental   •   v0.1.2'); foot.setObjectName('muted'); resultrow.addWidget(foot)
         self.tray=None
         if QSystemTrayIcon.isSystemTrayAvailable():
             self.tray=QSystemTrayIcon(icon(),self); self.tray.setToolTip('Prism — offline file tools'); menu=QMenu()
