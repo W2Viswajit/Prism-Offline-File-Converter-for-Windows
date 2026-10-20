@@ -45,4 +45,7 @@ def launch():
         handle_exception(type(e),e,e.__traceback__)
         raise SystemExit(1)
 
-if __name__=='__main__': launch()
+if __name__=='__main__':
+    import multiprocessing
+    multiprocessing.freeze_support()
+    launch()

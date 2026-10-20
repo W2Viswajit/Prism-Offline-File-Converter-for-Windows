@@ -1,29 +1,54 @@
 import math
 from PySide6.QtCore import Qt,QRectF,QPointF,QPoint,QPropertyAnimation,QEasingCurve,Signal,QTimer
-from PySide6.QtGui import QColor,QPainter,QPainterPath,QPen,QFont,QPixmap,QCursor
+from PySide6.QtGui import QColor,QPainter,QPainterPath,QPen,QFont,QPixmap,QCursor,QRegion
 from PySide6.QtWidgets import QWidget,QDialog,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QRubberBand,QDialogButtonBox,QListWidget,QAbstractItemView,QSplitter
 from PIL.ImageQt import ImageQt
 from .engine import load_image,reader
-from .windows import apply_backdrop
+from .theme import appearance
+from .windows import left_button_down
 
 class Wheel(QWidget):
     chosen=Signal(str)
     dropped=Signal(list)
     def __init__(self,parent=None):
         super().__init__(None,Qt.Tool|Qt.FramelessWindowHint|Qt.WindowStaysOnTopHint)
-        self.setAttribute(Qt.WA_TranslucentBackground); self.setAttribute(Qt.WA_ShowWithoutActivating)
+        self.setAttribute(Qt.WA_TranslucentBackground); self.setAutoFillBackground(False)
+        self.setObjectName("prismWheel"); self.setWindowTitle("Prism wheel"); self.setStyleSheet("QWidget#prismWheel { background:transparent; border:0; }")
+        self.setFocusPolicy(Qt.StrongFocus)
+        # Keep the native input region outside the antialiased paint edge.
+        self.setMask(QRegion(14,14,392,392,QRegion.Ellipse))
+        self.theme=appearance(); self.scale=1.0
         self.setAcceptDrops(True); self.setMouseTracking(True); self.setFixedSize(420,420)
         self.light=False; self.actions=[]; self.hover=-1; self.title=''; self.drag_mode=False
+        self.drag_watch=QTimer(self); self.drag_watch.setInterval(60); self.drag_watch.timeout.connect(self.check_drag_release)
         self.timeout=QTimer(self); self.timeout.setSingleShot(True); self.timeout.timeout.connect(self.hide)
-    def present(self,actions,title,drag=False):
+    def present(self,actions,title,drag=False,reposition=True):
         self.actions=actions[:8]; self.title=title; self.hover=-1; self.drag_mode=drag
         from PySide6.QtWidgets import QApplication
-        point=QCursor.pos(); screen=(QApplication.screenAt(point) or QApplication.primaryScreen()).availableGeometry()
-        self.move(max(screen.left(),min(point.x()-210,screen.right()-420)),max(screen.top(),min(point.y()-210,screen.bottom()-420)))
-        self.show(); apply_backdrop(self); self.raise_(); self.timeout.start(20000)
-        self.animation=QPropertyAnimation(self,b'windowOpacity'); self.animation.setDuration(110); self.animation.setStartValue(.2); self.animation.setEndValue(1.0); self.animation.start()
+        if reposition:
+            point=QCursor.pos(); screen=(QApplication.screenAt(point) or QApplication.primaryScreen()).availableGeometry()
+            side=min(420,screen.width(),screen.height()); self.scale=side/420
+            self.setFixedSize(side,side)
+            self.setMask(QRegion(round(14*self.scale),round(14*self.scale),round(392*self.scale),round(392*self.scale),QRegion.Ellipse))
+            self.move(max(screen.left(),min(point.x()-side//2,screen.right()-side+1)),max(screen.top(),min(point.y()-side//2,screen.bottom()-side+1)))
+        self.setAttribute(Qt.WA_ShowWithoutActivating,drag)
+        self.show(); self.raise_()
+        if drag: self.timeout.stop(); self.drag_watch.start()
+        else: self.drag_watch.stop(); self.timeout.start(20000)
+        # No native backdrop or opacity animation: Windows layered alpha keeps
+        # the antialiased perimeter and zero-alpha pixels genuinely transparent.
         if not drag: self.activateWindow(); self.setFocus()
         self.update()
+    def check_drag_release(self):
+        if self.drag_mode and not left_button_down(): self.hide()
+    def hideEvent(self,event):
+        self.timeout.stop(); self.drag_watch.stop()
+        super().hideEvent(event)
+    def choose(self,index):
+        if not 0<=index<len(self.actions): return
+        key=self.actions[index][0]
+        if not key.startswith('_'): self.hide()
+        self.chosen.emit(key)
     def shape(self,i):
         n=len(self.actions); step=360/max(n,1); start=90-i*step-step/2+2; end=start+step-4
         outer=QRectF(25,25,370,370); inner=QRectF(134,134,152,152)
@@ -35,37 +60,44 @@ class Wheel(QWidget):
         p.quadTo(at(185,start),at(185,start+3)); p.closeSubpath()
         return p
     def hit(self,pos):
-        return next((i for i in range(len(self.actions)) if self.shape(i).contains(QPointF(pos))),-1)
+        return next((i for i in range(len(self.actions)) if self.shape(i).contains(QPointF(pos)/self.scale)),-1)
     def paintEvent(self,event):
         p=QPainter(self); p.setRenderHint(QPainter.Antialiasing)
-        p.setPen(QPen(QColor('#394859'),1)); p.setBrush(QColor(231,239,249,245) if self.light else QColor(18,25,35,245)); p.drawEllipse(QRectF(16,16,388,388))
+        p.setCompositionMode(QPainter.CompositionMode_Source); p.fillRect(self.rect(),Qt.transparent); p.setCompositionMode(QPainter.CompositionMode_SourceOver)
+        p.scale(self.scale,self.scale); t=self.theme
+        p.setPen(QPen(QColor(t.border),1)); p.setBrush(QColor(t.background)); p.drawEllipse(QRectF(16,16,388,388))
         for i,(key,label) in enumerate(self.actions):
             selected=i==self.hover
-            p.setBrush((QColor('#b6d6fb') if self.light else QColor('#366c9e')) if selected else (QColor(245,249,255,235) if self.light else QColor(47,60,76,235))); p.setPen(QPen(QColor('#85c4ff') if selected else QColor('#536071'),1)); p.drawPath(self.shape(i))
+            p.setBrush(QColor(t.accent if selected else t.surface)); p.setPen(QPen(QColor(t.accent if selected else t.border),1)); p.drawPath(self.shape(i))
             a=math.radians(90-i*360/len(self.actions)); x=210+128*math.cos(a); y=210-128*math.sin(a)
-            p.setPen(QColor('#17263b') if self.light else QColor('#ffffff')); p.setFont(QFont('Segoe UI',11,QFont.DemiBold)); p.drawText(QRectF(x-56,y-30,112,60),Qt.AlignCenter|Qt.TextWordWrap,label)
-        p.setPen(QColor('#2863a8') if self.light else QColor('#8bc7ff')); p.setFont(QFont('Segoe UI',9,QFont.DemiBold)); p.drawText(QRectF(143,168,134,26),Qt.AlignCenter,'PRISM')
-        p.setPen(QColor('#17263b') if self.light else QColor('#ffffff')); p.setFont(QFont('Segoe UI',9)); label=self.actions[self.hover][1] if self.hover>=0 else self.title
+            p.setPen(QColor(t.accent_text if selected else t.text)); p.setFont(QFont('Segoe UI',11,QFont.DemiBold)); p.drawText(QRectF(x-56,y-30,112,60),Qt.AlignCenter|Qt.TextWordWrap,label)
+        p.setPen(QColor(t.text)); p.setFont(QFont('Segoe UI',9,QFont.DemiBold)); p.drawText(QRectF(143,168,134,26),Qt.AlignCenter,'PRISM')
+        p.setPen(QColor(t.text)); p.setFont(QFont('Segoe UI',9)); label=self.actions[self.hover][1] if self.hover>=0 else self.title
         p.drawText(QRectF(147,195,126,45),Qt.AlignCenter|Qt.TextWordWrap,label[:36])
-        p.setPen(QColor('#54677f') if self.light else QColor('#9baec2')); p.setFont(QFont('Segoe UI',8)); p.drawText(QRectF(147,244,126,20),Qt.AlignCenter,'Esc to close')
+        p.setPen(QColor(t.muted)); p.setFont(QFont('Segoe UI',8)); p.drawText(QRectF(147,244,126,20),Qt.AlignCenter,'Esc to close')
     def mouseMoveEvent(self,e): self.hover=self.hit(e.position()); self.update()
     def mouseReleaseEvent(self,e):
         i=self.hit(e.position())
-        if i>=0: self.hide(); self.chosen.emit(self.actions[i][0])
+        if i>=0 and e.button()==Qt.LeftButton: self.choose(i)
         else: self.hide()
     def keyPressEvent(self,e):
         if e.key()==Qt.Key_Escape: self.hide()
         elif e.key() in (Qt.Key_Right,Qt.Key_Down): self.hover=(self.hover+1)%max(1,len(self.actions)); self.update()
         elif e.key() in (Qt.Key_Left,Qt.Key_Up): self.hover=(self.hover-1)%max(1,len(self.actions)); self.update()
-        elif e.key() in (Qt.Key_Return,Qt.Key_Enter) and self.hover>=0: self.hide(); self.chosen.emit(self.actions[self.hover][0])
+        elif e.key() in (Qt.Key_Return,Qt.Key_Enter,Qt.Key_Space) and self.hover>=0: self.choose(self.hover)
+        elif e.key() in (Qt.Key_Backspace,Qt.Key_Back):
+            if any(key=='_back' for key,label in self.actions): self.chosen.emit('_back')
     def dragEnterEvent(self,e):
-        if e.mimeData().hasUrls(): e.setDropAction(Qt.CopyAction); e.accept()
+        if e.mimeData().hasUrls():
+            self.drag_mode=True; self.timeout.stop(); self.drag_watch.start()
+            e.setDropAction(Qt.CopyAction); e.accept()
     def dragMoveEvent(self,e): self.hover=self.hit(e.position()); self.update(); e.setDropAction(Qt.CopyAction); e.accept()
     def dropEvent(self,e):
-        i=self.hit(e.position()); self.hide()
+        i=self.hit(e.position())
         if i>=0:
             paths=[u.toLocalFile() for u in e.mimeData().urls() if u.isLocalFile()]
-            self.dropped.emit(paths); e.setDropAction(Qt.CopyAction); e.accept(); self.chosen.emit(self.actions[i][0])
+            if paths:
+                self.dropped.emit(paths); e.setDropAction(Qt.CopyAction); e.accept(); self.choose(i)
     def focusOutEvent(self,e):
         if not self.drag_mode: self.hide()
 
@@ -118,6 +150,7 @@ class PagesDialog(QDialog):
         if row>=0 and 0<=target<self.items.count(): item=self.items.takeItem(row); self.items.insertItem(target,item); self.items.setCurrentRow(target)
     def remove(self):
         for i in self.items.selectedItems(): self.items.takeItem(self.items.row(i))
+        self.show_page(self.items.currentRow())
     def show_page(self,row):
         if row<0: self.preview.clear(); return
         try:

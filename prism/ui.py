@@ -6,6 +6,7 @@ from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBo
 from .engine import run,IMAGES,SUPPORTED,Cancelled
 from .widgets import Wheel,CropDialog,PagesDialog
 from .windows import ExplorerBridge
+from .controls import FileDelegate,ToolButton,line_icon
 
 DARK='''
 QWidget { background:#151d28; color:#edf3fc; font-family:"Segoe UI"; font-size:13px; }
@@ -46,11 +47,12 @@ for before, after in {
     '#41536b':'#c6d2e0', '#36567c':'#d5e6fb'
 }.items(): LIGHT=LIGHT.replace(before,after)
 
+from .theme import appearance,stylesheet
+
 def set_theme(choice):
-    app=QApplication.instance()
-    dark=choice=='Dark' or (choice=='System' and app.styleHints().colorScheme()==Qt.ColorScheme.Dark)
-    app.setStyleSheet(DARK if dark else LIGHT)
-    return dark
+    t=appearance(choice)
+    QApplication.instance().setStyleSheet(stylesheet(t))
+    return t.dark
 
 def icon():
     pix=QPixmap(64,64); pix.fill(Qt.transparent); p=QPainter(pix); p.setRenderHint(QPainter.Antialiasing)
@@ -71,8 +73,13 @@ class Job(QRunnable):
 
 class DropList(QListWidget):
     files=Signal(list)
+    remove_requested=Signal(str)
     def __init__(self):
-        super().__init__(); self.setAcceptDrops(True); self.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        super().__init__(); self.setAcceptDrops(True); self.setSelectionMode(QAbstractItemView.ExtendedSelection); self.setItemDelegate(FileDelegate(self)); self.setMouseTracking(True); self.setObjectName("fileList"); self.setSpacing(0)
+    def paintEvent(self,event):
+        super().paintEvent(event)
+        if not self.count():
+            p=QPainter(self.viewport()); p.setPen(QColor(getattr(self,"theme",appearance()).muted)); p.drawText(self.viewport().rect(),Qt.AlignCenter,"Drop files here, or choose Add files")
     def dragEnterEvent(self,e):
         if e.mimeData().hasUrls(): e.acceptProposedAction()
     def dragMoveEvent(self,e): e.acceptProposedAction()
@@ -81,44 +88,64 @@ class DropList(QListWidget):
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__(); self.setWindowTitle('Prism • Offline file tools'); self.setWindowIcon(icon()); self.resize(980,760); self.setMinimumSize(860,680)
+        super().__init__(); self.setWindowTitle('Prism • Offline file tools'); self.setWindowIcon(icon()); self.resize(780,620); self.setMinimumSize(640,600)
         self.settings=QSettings('Viswajit','Prism'); self.paths=[]; self.outputs=[]; self.job=None; self.wheel_paths=[]; self.wheel=Wheel()
         self.wheel.chosen.connect(self.wheel_action)
         self.wheel.dropped.connect(self.set_wheel_paths)
         self.bridge=ExplorerBridge(self); self.bridge.requested.connect(self.explorer_wheel)
         self.bridge.enabled=self.settings.value('explorer',True,type=bool)
-        self.wheel.light=not set_theme(self.settings.value('theme','Dark'))
+        self.appearance=None; self.refresh_theme()
+        self.theme_timer=QTimer(self); self.theme_timer.timeout.connect(self.refresh_theme); self.theme_timer.start(1000)
+        QApplication.instance().styleHints().colorSchemeChanged.connect(self.refresh_theme)
         self.pool=QThreadPool(self); self.pool.setMaxThreadCount(1)
-        root=QWidget(); self.setCentralWidget(root); v=QVBoxLayout(root); v.setContentsMargins(32,26,32,22); v.setSpacing(16)
-        top=QHBoxLayout(); v.addLayout(top); titles=QVBoxLayout(); top.addLayout(titles)
-        eyebrow=QLabel('P R I S M   /   WINDOWS'); eyebrow.setObjectName('eyebrow'); titles.addWidget(eyebrow)
-        title=QLabel('Small actions. Clear results.'); title.setObjectName('title'); titles.addWidget(title)
-        sub=QLabel('Convert, crop and work with PDFs. Everything stays on this computer.'); sub.setObjectName('muted'); titles.addWidget(sub)
-        top.addStretch(); b=QPushButton('Settings'); b.clicked.connect(self.preferences); top.addWidget(b)
-        card=QFrame(); card.setObjectName('card'); cv=QVBoxLayout(card); cv.setContentsMargins(20,16,20,16); v.addWidget(card)
-        head=QHBoxLayout(); cv.addLayout(head); label=QLabel('Drop your files here'); label.setStyleSheet('font-size:18px; font-weight:600'); head.addWidget(label); head.addStretch()
-        add=QPushButton('+ Add files'); add.setObjectName('primary'); add.clicked.connect(self.pick); head.addWidget(add)
-        self.files=DropList(); self.files.setMinimumHeight(115); self.files.files.connect(self.add_files); self.files.itemSelectionChanged.connect(self.rebuild_actions); cv.addWidget(self.files)
-        row=QHBoxLayout(); cv.addLayout(row)
-        self.selection=QLabel('Images · PDF · TXT · DOCX'); self.selection.setObjectName('muted'); row.addWidget(self.selection); row.addStretch()
-        for label,fn in [('Remove',self.remove),('Clear',self.clear),('Open wheel',self.open_wheel)]:
-            b=QPushButton(label); b.clicked.connect(fn); row.addWidget(b)
-        title=QLabel('AVAILABLE ACTIONS'); title.setObjectName('eyebrow'); v.addWidget(title)
-        self.action_host=QWidget(); self.grid=QGridLayout(self.action_host); self.grid.setContentsMargins(0,0,0,0); self.grid.setSpacing(10); v.addWidget(self.action_host)
-        self.hint=QLabel('Add files to see compatible actions. Select a subset to work with mixed formats.'); self.hint.setObjectName('muted'); self.hint.setWordWrap(True); v.addWidget(self.hint)
-        v.addStretch()
-        self.status=QLabel('Ready  •  Outputs are saved beside originals with new names.'); self.status.setWordWrap(True); v.addWidget(self.status)
-        self.progress=QProgressBar(); self.progress.setTextVisible(False); self.progress.hide(); v.addWidget(self.progress)
-        resultrow=QHBoxLayout(); v.addLayout(resultrow)
-        self.open_result=QPushButton('Open result'); self.open_result.clicked.connect(self.open_output); self.open_result.setEnabled(False); resultrow.addWidget(self.open_result)
-        self.folder_result=QPushButton('Show output folder'); self.folder_result.clicked.connect(self.open_folder); self.folder_result.setEnabled(False); resultrow.addWidget(self.folder_result)
-        self.cancel=QPushButton('Cancel'); self.cancel.clicked.connect(self.cancel_job); self.cancel.hide(); resultrow.addWidget(self.cancel); resultrow.addStretch()
-        foot=QLabel('Explorer: Ctrl + Alt + Space   •   Shift-drag: experimental   •   v0.1.2'); foot.setObjectName('muted'); resultrow.addWidget(foot)
+        root=QWidget(); self.setCentralWidget(root); v=QVBoxLayout(root); v.setContentsMargins(16,14,16,14); v.setSpacing(12)
+        top=QHBoxLayout(); v.addLayout(top)
+        self.brand=QLabel();self.brand.setObjectName('brandMark');self.brand.setFixedSize(32,32);self.brand.setAlignment(Qt.AlignCenter);top.addWidget(self.brand)
+        title=QLabel('Prism');title.setObjectName('brand');top.addWidget(title);top.addStretch()
+        self.recent_button=QPushButton();self.recent_button.setObjectName('iconButton');self.recent_button.setFixedSize(32,32);self.recent_button.setToolTip('Open latest result');self.recent_button.setAccessibleName('Open latest result');self.recent_button.clicked.connect(self.open_output);self.recent_button.setEnabled(False);top.addWidget(self.recent_button)
+        self.settings_button=QPushButton();self.settings_button.setObjectName('iconButton');self.settings_button.setFixedSize(32,32);self.settings_button.setToolTip('Settings');self.settings_button.setAccessibleName('Settings');self.settings_button.clicked.connect(self.preferences);top.addWidget(self.settings_button)
+        divider=QFrame();divider.setObjectName('divider');divider.setFixedHeight(1);v.addWidget(divider)
+        title=QLabel('Your files, simplified.');title.setObjectName('title');v.addWidget(title)
+        sub=QLabel('Fast, private and completely offline.');sub.setObjectName('muted');v.addWidget(sub)
+        card=QFrame();card.setObjectName('card');cv=QVBoxLayout(card);cv.setContentsMargins(12,12,12,12);cv.setSpacing(8);v.addWidget(card)
+        head=QHBoxLayout();cv.addLayout(head);label=QLabel('Files');label.setObjectName('sectionTitle');head.addWidget(label);head.addStretch()
+        add=QPushButton('+ Add files');add.setObjectName('compact');add.clicked.connect(self.pick);head.addWidget(add)
+        self.files=DropList();self.files.theme=self.appearance;self.files.files.connect(self.add_files);self.files.remove_requested.connect(self.remove_path);self.files.itemSelectionChanged.connect(self.rebuild_actions);cv.addWidget(self.files)
+        row=QHBoxLayout();cv.addLayout(row);self.selection=QLabel();self.selection.setObjectName('mutedSmall');row.addWidget(self.selection);row.addStretch()
+        clear=QPushButton('Clear all');clear.setObjectName('textButton');clear.clicked.connect(self.clear);row.addWidget(clear)
+        self.action_host=QWidget();self.grid=QGridLayout(self.action_host);self.grid.setContentsMargins(0,0,0,0);self.grid.setSpacing(8);v.addWidget(self.action_host)
+        self.hint=QLabel();self.hint.setObjectName('mutedSmall');self.hint.setWordWrap(True);v.addWidget(self.hint)
+        v.addStretch(1)
+        self.status=QLabel('');self.status.setWordWrap(True);self.status.setObjectName('mutedSmall');self.status.hide();v.addWidget(self.status)
+        self.progress=QProgressBar();self.progress.setTextVisible(False);self.progress.hide();v.addWidget(self.progress)
+        self.result_bar=QWidget();resultrow=QHBoxLayout(self.result_bar);resultrow.setContentsMargins(0,0,0,0);v.addWidget(self.result_bar)
+        self.open_result=QPushButton('Open result');self.open_result.clicked.connect(self.open_output);self.open_result.setEnabled(False);resultrow.addWidget(self.open_result)
+        self.folder_result=QPushButton('Show output folder');self.folder_result.clicked.connect(self.open_folder);self.folder_result.setEnabled(False);resultrow.addWidget(self.folder_result)
+        self.cancel=QPushButton('Cancel');self.cancel.clicked.connect(self.cancel_job);self.cancel.hide();resultrow.addWidget(self.cancel);resultrow.addStretch();self.result_bar.hide()
+        self.refresh_controls()
         self.tray=None
         if QSystemTrayIcon.isSystemTrayAvailable():
             self.tray=QSystemTrayIcon(icon(),self); self.tray.setToolTip('Prism — offline file tools'); menu=QMenu()
             menu.addAction('Open Prism',self.restore); menu.addAction('Add files',self.pick); menu.addAction('Quit',self.quit_app)
             self.tray_menu=menu; self.tray.setContextMenu(menu); self.tray.activated.connect(lambda reason:self.restore() if reason==QSystemTrayIcon.DoubleClick else None); self.tray.show()
+        self.rebuild_actions(); self.files.setFocus(Qt.OtherFocusReason)
+    def refresh_theme(self,*args):
+        t=appearance(self.settings.value('theme','System'))
+        if t!=self.appearance:
+            self.appearance=t; QApplication.instance().setStyleSheet(stylesheet(t))
+            self.wheel.theme=t; self.wheel.light=not t.dark; self.wheel.update()
+            if hasattr(self,"brand"):self.refresh_controls()
+    def refresh_controls(self):
+        t=self.appearance
+        self.brand.setPixmap(line_icon('brand',t.accent_text,24).pixmap(24,24))
+        self.settings_button.setIcon(line_icon('settings',t.muted));self.recent_button.setIcon(line_icon('history',t.muted))
+        self.files.theme=t;self.files.viewport().update()
+        for b in self.findChildren(ToolButton):b.refresh(t)
+    def remove_path(self,path):
+        if path not in self.paths:return
+        self.paths.remove(path)
+        for row in range(self.files.count()):
+            if self.files.item(row).data(Qt.UserRole)==path:self.files.takeItem(row);break
         self.rebuild_actions()
     def restore(self): self.showNormal(); self.raise_(); self.activateWindow()
     def pick(self):
@@ -131,7 +158,7 @@ class Window(QMainWindow):
             if not p.is_file() or p.suffix.lower() not in SUPPORTED: rejected.append(p.name); continue
             key=str(p.resolve())
             if key in self.paths: continue
-            self.paths.append(key); item=QListWidgetItem(f'{p.name}    ·    {p.stat().st_size/1024:,.0f} KB'); item.setData(Qt.UserRole,key); item.setToolTip(key); self.files.addItem(item)
+            self.paths.append(key); item=QListWidgetItem(p.name); item.setData(Qt.UserRole,key); item.setData(Qt.UserRole+1,f'{p.suffix[1:].upper()} file · {p.stat().st_size/1024:,.0f} KB'); item.setToolTip(key); self.files.addItem(item)
         self.rebuild_actions()
         if rejected: QMessageBox.information(self,'Unsupported items','Folders or unsupported files were skipped:\n'+'\n'.join(rejected[:10]))
     def selected(self):
@@ -159,14 +186,42 @@ class Window(QMainWindow):
     def rebuild_actions(self):
         while self.grid.count():
             item=self.grid.takeAt(0)
-            if item.widget(): item.widget().deleteLater()
-        paths=self.selected(); self.selection.setText(f'{len(paths)} selected / {len(self.paths)} files' if paths else 'Images · PDF · TXT · DOCX')
-        for i,(key,label) in enumerate(self.actions(paths)):
-            b=QPushButton(label+'  ↗'); b.setMinimumHeight(47); b.setEnabled(self.job is None); b.clicked.connect(lambda checked=False,k=key:self.start(k)); self.grid.addWidget(b,i//4,i%4)
-        self.hint.setText('Select matching file types to enable actions.' if paths and not self.actions(paths) else 'New files are saved beside originals. Metadata is not retained in image exports; colour is normalized to sRGB.')
+            if item.widget():item.widget().deleteLater()
+        paths=self.selected();count=len(paths)
+        self.selection.setText(f'{count} file'+('' if count==1 else 's')+' selected' if count else 'Images, PDF, TXT and DOCX')
+        self.files.setFixedHeight(max(72,min(4,len(self.paths))*62+4))
+        available=self.actions(paths); keys=dict(available);row=0
+        def heading(text):
+            nonlocal row
+            label=QLabel(text);label.setObjectName('eyebrow');self.grid.addWidget(label,row,0,1,3);row+=1
+        def button(key,label,col,span=1,tool=False):
+            b=ToolButton(key,label) if tool else QPushButton(label)
+            b.setProperty('action',key);b.setEnabled(self.job is None)
+            b.clicked.connect(lambda checked=False,k=key:self.start(k))
+            if tool:b.refresh(self.appearance)
+            else:b.setMinimumHeight(44)
+            self.grid.addWidget(b,row,col,1,span);return b
+        primary=next((key for key in ('images_pdf','txt_pdf','docx_pdf','merge') if key in keys),None)
+        conversions=[(key,label) for key,label in available if key in ('png','jpg','webp')]
+        if primary or conversions:
+            heading('CONVERT')
+            if primary:
+                b=button(primary,'Convert to PDF' if primary!='merge' else 'Merge PDFs',0,3);b.setObjectName('primary');b.setMinimumHeight(50);b.setIcon(line_icon('file',self.appearance.accent_text));row+=1
+            for col,(key,label) in enumerate(conversions):button(key,label,col)
+            if conversions:row+=1
+        edits=[(key,keys[key]) for key in ('crop','resize','compress_image','ocr','rotate_image') if key in keys]
+        edits += [(key,label) for key,label in available if key not in ('png','jpg','webp','images_pdf','txt_pdf','docx_pdf','merge','crop','resize','compress_image','ocr','rotate_image')]
+        if edits:
+            heading('PDF TOOLS' if paths and Path(paths[0]).suffix.lower()=='.pdf' else 'EDIT & OPTIMIZE')
+            for index,(key,label) in enumerate(edits):
+                if index and index%3==0:row+=1
+                button(key,{'compress_image':'Compress','ocr':'OCR','rotate_image':'Rotate'}.get(key,label),index%3,tool=True)
+        for col in range(3):self.grid.setColumnStretch(col,1)
+        self.hint.setText('Select files of the same type to see compatible tools.' if paths and not available else '')
+        self.hint.setVisible(bool(self.hint.text()))
     def open_wheel(self):
         self.show_wheel(self.selected(),False)
-    def show_wheel(self,paths,drag):
+    def show_wheel(self,paths,drag,reposition=True):
         if self.job: return
         actions=self.actions(paths)
         if not actions: self.restore(); return
@@ -174,17 +229,22 @@ class Window(QMainWindow):
         # First wheel is conversion + tools selector, never silently hide actions.
         if {Path(p).suffix.lower() for p in paths}<=IMAGES:
             actions=[('png','PNG'),('jpg','JPG'),('webp','WebP'),('images_pdf','PDF'),('_tools','Tools')]
-        self.wheel.present(actions,Path(paths[0]).name if len(paths)==1 else f'{len(paths)} files',drag)
+        self.wheel.present(actions,Path(paths[0]).name if len(paths)==1 else f'{len(paths)} files',drag,reposition=reposition)
     def set_wheel_paths(self,paths): self.wheel_paths=paths
     def wheel_action(self,key):
         if key=='_tools':
             actions=[a for a in self.actions(self.wheel_paths) if a[0] not in ('png','jpg','webp','images_pdf')]
-            QTimer.singleShot(0,lambda:self.wheel.present(actions,'Image tools',False)); return
+            self.wheel.present(actions+[('_back','← Back')],'Image tools',False,reposition=False); return
+        if key=='_back':
+            self.show_wheel(self.wheel_paths,False,reposition=False); return
         self.start(key,self.wheel_paths)
     def explorer_wheel(self,paths,drag):
+        if not drag and self.wheel.isVisible():
+            self.wheel.hide();return
+        if not paths and self.isActiveWindow():paths=self.selected()
         paths=[p for p in paths if Path(p).is_file() and Path(p).suffix.lower() in SUPPORTED]
         if paths: self.show_wheel(paths,drag)
-        elif not drag: self.restore(); self.status.setText('Select supported files in a File Explorer window, or add files here.')
+        elif not drag: self.restore(); self.status.show(); self.status.setText('Select supported files in a File Explorer window, or add files here.')
     def start(self,key,paths=None):
         if self.job: return
         paths=list(paths or self.selected()); options={}
@@ -219,24 +279,24 @@ class Window(QMainWindow):
                 if not ok:return
                 options['dpi']=dpi
             if key=='docx_pdf':
-                if QMessageBox.question(self,'Document rendering','Uses locally installed LibreOffice. Fonts and complex layouts may differ from Word. Review the resulting PDF. Continue?')!=QMessageBox.Yes:return
+                if QMessageBox.question(self,'Document rendering','Uses Microsoft Word when installed, otherwise LibreOffice. The source is opened read-only. Review the exported PDF. Continue?')!=QMessageBox.Yes:return
             if key=='ocr':
                 if QMessageBox.question(self,'OCR','Printed-text OCR is optional and can make mistakes. Review the extracted text before using it. Continue?')!=QMessageBox.Yes:return
             self.job=Job(key,paths,options); self.active_action=key
             self.job.signals.progress.connect(self.update_progress)
             self.job.signals.success.connect(self.succeeded); self.job.signals.failure.connect(self.failed); self.job.signals.finished.connect(self.finished)
             self.progress.setRange(0,0); self.progress.show(); self.cancel.show(); self.cancel.setEnabled(True)
-            self.status.setText('Working… '+dict(self.actions(paths)).get(key,key)); self.open_result.setEnabled(False); self.folder_result.setEnabled(False); self.rebuild_actions(); self.pool.start(self.job)
+            self.status.show(); self.result_bar.show(); self.status.setText('Working… '+dict(self.actions(paths)).get(key,key)); self.open_result.setEnabled(False); self.folder_result.setEnabled(False); self.rebuild_actions(); self.pool.start(self.job)
         except Exception as e: QMessageBox.warning(self,'Cannot start',str(e))
     def update_progress(self,n,total):
         self.progress.setRange(0,100); self.progress.setValue(round(n*100/max(total,1)))
     def cancel_job(self):
         if self.job: self.job.cancel.set(); self.cancel.setEnabled(False); self.status.setText('Cancelling after the current engine step…')
     def succeeded(self,outputs):
-        self.outputs=outputs; self.status.setText(f'Completed • {len(outputs)} output file(s) • {Path(outputs[0]).name}')
+        self.outputs=outputs; self.recent_button.setEnabled(True); self.status.show(); self.result_bar.show(); self.status.setText(f'Completed • {len(outputs)} output file(s) • {Path(outputs[0]).name}')
         self.open_result.setEnabled(True); self.folder_result.setEnabled(True)
         if self.active_action in ('ocr','text') and len(outputs)==1: QTimer.singleShot(0,lambda:self.text_preview(outputs[0]))
-    def failed(self,message): self.status.setText(message)
+    def failed(self,message): self.status.show(); self.status.setText(message)
     def finished(self): self.job=None; self.cancel.hide(); self.progress.hide(); self.rebuild_actions()
     def open_output(self):
         if self.outputs: QDesktopServices.openUrl(QUrl.fromLocalFile(self.outputs[0]))
@@ -258,22 +318,30 @@ class Window(QMainWindow):
         d=QDialog(self); d.setWindowTitle('Prism settings'); v=QVBoxLayout(d)
         c=QCheckBox('Enable Explorer shortcut and experimental Shift-drag'); c.setChecked(self.bridge.enabled); v.addWidget(c)
         t=QCheckBox('Close window to system tray'); t.setChecked(self.settings.value('tray',True,type=bool)); v.addWidget(t)
-        theme=QComboBox(); theme.addItems(['System','Dark','Light']); theme.setCurrentText(self.settings.value('theme','Dark')); v.addWidget(QLabel('Appearance')); v.addWidget(theme)
-        text=QLabel('Fluent-inspired surfaces with a solid fallback.\nOptional: run Install-OCR.bat for OCR; install LibreOffice for DOCX.\nNo files are uploaded. No sharing or cloud service.\nExplorer integration must be verified on your Windows installation.'); text.setWordWrap(True); v.addWidget(text)
+        theme=QComboBox(); theme.addItems(['System','Dark','Light']); theme.setCurrentText(self.settings.value('theme','System')); v.addWidget(QLabel('Appearance')); v.addWidget(theme)
+        text=QLabel('Fluent-inspired surfaces with a solid fallback.\nOptional: run Install-OCR.bat for OCR; install Microsoft Word or LibreOffice for DOCX.\nNo files are uploaded. No sharing or cloud service.\nExplorer integration must be verified on your Windows installation.'); text.setWordWrap(True); v.addWidget(text)
         b=QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel); v.addWidget(b); b.accepted.connect(d.accept); b.rejected.connect(d.reject)
         if d.exec()==QDialog.Accepted:
-            self.bridge.enabled=c.isChecked(); self.settings.setValue('explorer',c.isChecked()); self.settings.setValue('tray',t.isChecked()); self.settings.setValue('theme',theme.currentText()); self.wheel.light=not set_theme(theme.currentText())
+            self.bridge.enabled=c.isChecked(); self.settings.setValue('explorer',c.isChecked()); self.settings.setValue('tray',t.isChecked()); self.settings.setValue('theme',theme.currentText()); self.refresh_theme()
     def quit_app(self):
         if self.job:
             self.cancel_job(); QMessageBox.information(self,'Job stopping','Wait for the current operation to stop, then quit again.'); return
         self.quitting=True; self.close()
     def closeEvent(self,e):
+        self.wheel.hide()
         if self.job: self.hide(); e.ignore(); return
         if self.tray and not getattr(self,'quitting',False) and self.settings.value('tray',True,type=bool): self.hide(); e.ignore(); return
-        self.wheel.close(); e.accept(); QApplication.quit()
+        self.bridge.close(); self.wheel.close(); e.accept(); QApplication.quit()
 
 def main():
     app=QApplication(sys.argv); app.setApplicationName('Prism'); app.setStyle('Fusion'); app.setStyleSheet(DARK); app.setWindowIcon(icon())
+    from .instance import Instance
+    instance=Instance(app)
+    if instance.forward(sys.argv[1:]): return
     w=Window(); w.show()
+    def received(paths):
+        w.wheel.hide(); w.add_files(paths); w.restore()
+    instance.received.connect(received)
+    instance.start()
     if len(sys.argv)>1:w.add_files(sys.argv[1:])
     sys.exit(app.exec())

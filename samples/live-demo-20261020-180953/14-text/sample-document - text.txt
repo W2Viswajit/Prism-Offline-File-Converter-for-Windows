@@ -1,0 +1,10 @@
+Prism sample - page 1
+Use this file to test merge, page order and text extraction.
+
+
+Prism sample - page 2
+Use this file to test merge, page order and text extraction.
+
+
+Prism sample - page 3
+Use this file to test merge, page order and text extraction.

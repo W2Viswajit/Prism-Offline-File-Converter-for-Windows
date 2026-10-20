@@ -135,9 +135,9 @@ def run(action, paths, options=None, cancel=None, progress=None):
                     check(cancel); w=PdfWriter(); w.add_page(r.pages[page]); pdfsave(src,f' - page {page+1}',w)
             else:
                 w=PdfWriter()
-                for page in ids:
+                for page in (range(len(r.pages)) if action=='rotate_pdf' else ids):
                     obj=w.add_page(r.pages[page])
-                    if action=='rotate_pdf': obj.rotate(90)
+                    if action=='rotate_pdf' and page in ids: obj.rotate(90)
                 pdfsave(src,' - '+action,w)
         elif action=='pdf_png':
             import pypdfium2 as pdfium
@@ -149,9 +149,13 @@ def run(action, paths, options=None, cancel=None, progress=None):
                     check(cancel); page=doc[page_no]
                     if page.get_width()*page.get_height()*(options.get('dpi',150)/72)**2>60_000_000:
                         page.close(); raise ValueError('Rendered page exceeds 60 megapixels. Use a lower DPI.')
-                    bitmap=page.render(scale=options.get('dpi',150)/72); im=bitmap.to_pil()
-                    save(src,'.png',f' - page {page_no+1}',lambda p:im.save(p),validate_image)
-                    bitmap.close(); page.close()
+                    try:
+                        bitmap=page.render(scale=options.get('dpi',150)/72)
+                        try:
+                            im=bitmap.to_pil()
+                            save(src,'.png',f' - page {page_no+1}',lambda p:im.save(p),validate_image)
+                        finally: bitmap.close()
+                    finally: page.close()
             finally: doc.close()
         elif action in ('text','ocr'):
             if action=='text':
@@ -184,8 +188,11 @@ def run(action, paths, options=None, cancel=None, progress=None):
                 c.save()
             save(src,'.pdf',' - text',textpdf,validate_pdf)
         elif action=='docx_pdf':
+            if has_word():
+                save(src,'.pdf',' - document',lambda p:word_to_pdf(src,p,cancel),validate_pdf)
+                progress(index+1,len(paths)); continue
             exe=find_office()
-            if not exe: raise ValueError('Install LibreOffice to enable DOCX to PDF, then restart Prism. Other tools work without it.')
+            if not exe: raise ValueError('Install Microsoft Word or LibreOffice to enable DOCX to PDF, then restart Prism. Other tools work without it.')
             with tempfile.TemporaryDirectory(prefix='prism-office-') as tmp:
                 root=Path(tmp); profile=(root/'profile').as_uri()
                 cmd=[exe,f'-env:UserInstallation={profile}','--headless','--convert-to','pdf','--outdir',tmp,str(src.resolve())]
@@ -204,6 +211,89 @@ def run(action, paths, options=None, cancel=None, progress=None):
         else: raise ValueError(f'Unsupported operation: {action}')
         progress(index+1,len(paths))
     return output
+
+def has_word():
+    if os.name!='nt': return False
+    import winreg
+    try:
+        with winreg.OpenKey(winreg.HKEY_CLASSES_ROOT,r'Word.Application\CLSID'): return True
+    except OSError: return False
+
+
+def _word_worker(source,destination,pipe):
+    import pythoncom
+    import win32com.client
+    import win32process
+    pythoncom.CoInitialize()
+    word=None; document=None
+    try:
+        word=win32com.client.DispatchEx('Word.Application')
+        word.Visible=False; word.DisplayAlerts=0; word.AutomationSecurity=3
+        document=word.Documents.Open(FileName=source,ReadOnly=True,
+            AddToRecentFiles=False,ConfirmConversions=False,Visible=False,NoEncodingDialog=True)
+        pipe.send(('started',win32process.GetWindowThreadProcessId(document.Windows.Item(1).Hwnd)[1]))
+        pipe.send(('opened',None))
+        document.ExportAsFixedFormat(OutputFileName=destination,ExportFormat=17,
+            OpenAfterExport=False,OptimizeFor=0,CreateBookmarks=1,DocStructureTags=True)
+        pipe.send(('exported',None))
+    except Exception as exc: pipe.send(('error',str(exc)))
+    finally:
+        try:
+            if document is not None: document.Close(SaveChanges=0)
+        finally:
+            try:
+                if word is not None: word.Quit(SaveChanges=0)
+            finally:
+                pythoncom.CoUninitialize(); pipe.close()
+
+
+def word_to_pdf(source,destination,cancel=None):
+    """Bound Word automation to a helper process so cancellation stays responsive.
+
+    A Word process that existed before this conversion is never terminated.
+    The original is opened read-only, macros are disabled, and only a validated
+    PDF is committed by the caller.
+    """
+    import csv
+    import multiprocessing
+    import win32api
+    import win32con
+    listing=subprocess.check_output(['tasklist','/FI','IMAGENAME eq WINWORD.EXE','/FO','CSV','/NH'],creationflags=0x08000000)
+    existing={int(row[1]) for row in csv.reader(listing.decode(errors='replace').splitlines()) if len(row)>1 and row[0].lower()=='winword.exe'}
+    context=multiprocessing.get_context('spawn'); receive,send=context.Pipe(duplex=False)
+    worker=context.Process(target=_word_worker,args=(str(source.resolve()),str(destination.resolve()),send))
+    worker.start(); send.close(); started=time.monotonic(); exported=None; owned_pid=None; failure=None
+    try:
+        while True:
+            check(cancel)
+            if receive.poll(.05):
+                try: kind,value=receive.recv()
+                except EOFError: break
+                if kind=='started':
+                    if value in existing:
+                        raise ValueError('Word reused an existing process. Close Word and retry to keep your open documents isolated.')
+                    owned_pid=value
+                elif kind=='exported': exported=time.monotonic()
+                elif kind=='error': failure=value
+            if not worker.is_alive() and not receive.poll(): break
+            if exported is not None and time.monotonic()-exported>8: break
+            if time.monotonic()-started>120:
+                raise TimeoutError('Microsoft Word export exceeded two minutes. Check Word activation, add-ins, protected-view prompts or document errors, then retry.')
+        if failure: raise ValueError('Microsoft Word could not export this document: '+failure)
+        if exported is None: raise ValueError('Microsoft Word stopped before confirming PDF export. Open the document in Word and retry.')
+    finally:
+        # Word can hang during Quit because of add-ins. Retire only the dedicated
+        # instance identified by this helper, never any pre-existing Word process.
+        if worker.is_alive():
+            if owned_pid is not None:
+                try:
+                    handle=win32api.OpenProcess(win32con.PROCESS_TERMINATE,False,owned_pid)
+                    try: win32api.TerminateProcess(handle,0)
+                    finally: handle.Close()
+                except Exception: pass
+            worker.terminate()
+        worker.join(5); receive.close()
+
 
 def find_office():
     candidates=[shutil.which('soffice'),r'C:\Program Files\LibreOffice\program\soffice.exe',r'C:\Program Files (x86)\LibreOffice\program\soffice.exe']

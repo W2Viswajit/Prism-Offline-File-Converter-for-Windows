@@ -1,0 +1,132 @@
+[
+  {
+    "tool": "png",
+    "action": "png",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\01-png\\sample-image - png.png"
+    ]
+  },
+  {
+    "tool": "jpg",
+    "action": "jpg",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\02-jpg\\sample-image - jpg.jpg"
+    ]
+  },
+  {
+    "tool": "webp",
+    "action": "webp",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\03-webp\\sample-image - webp.webp"
+    ]
+  },
+  {
+    "tool": "resize",
+    "action": "resize",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\04-resize\\sample-image - resize.png"
+    ]
+  },
+  {
+    "tool": "crop",
+    "action": "crop",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\05-crop\\sample-image - crop.png"
+    ]
+  },
+  {
+    "tool": "rotate_image",
+    "action": "rotate_image",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\06-rotate_image\\sample-image - rotate_image.png"
+    ]
+  },
+  {
+    "tool": "compress_image",
+    "action": "compress_image",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\07-compress_image\\sample-image - compress_image.png"
+    ]
+  },
+  {
+    "tool": "Create PDF",
+    "action": "images_pdf",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\08-images_pdf\\sample-image - images.pdf"
+    ]
+  },
+  {
+    "tool": "Merge PDFs",
+    "action": "merge",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\09-merge\\sample-document - merged.pdf"
+    ]
+  },
+  {
+    "tool": "Organize pages",
+    "action": "extract",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\10-extract\\sample-document - extract.pdf"
+    ]
+  },
+  {
+    "tool": "Rotate selected page",
+    "action": "rotate_pdf",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\11-rotate_pdf\\sample-document - rotate_pdf.pdf"
+    ]
+  },
+  {
+    "tool": "Split pages",
+    "action": "split",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\12-split\\sample-document - page 1.pdf",
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\12-split\\sample-document - page 2.pdf",
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\12-split\\sample-document - page 3.pdf"
+    ]
+  },
+  {
+    "tool": "PDF page images",
+    "action": "pdf_png",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\13-pdf_png\\sample-document - page 1.png",
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\13-pdf_png\\sample-document - page 2.png",
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\13-pdf_png\\sample-document - page 3.png"
+    ]
+  },
+  {
+    "tool": "Extract PDF text",
+    "action": "text",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\14-text\\sample-document - text.txt"
+    ]
+  },
+  {
+    "tool": "Text to PDF",
+    "action": "txt_pdf",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\15-txt_pdf\\sample-text - text.pdf"
+    ]
+  },
+  {
+    "tool": "Image OCR",
+    "action": "ocr",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\16-ocr\\sample-scan - text.txt"
+    ]
+  },
+  {
+    "tool": "PDF OCR",
+    "action": "ocr",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\17-ocr\\sample-scan - images - text.txt"
+    ]
+  },
+  {
+    "tool": "Microsoft Word to PDF",
+    "action": "docx_pdf",
+    "outputs": [
+      "C:\\VSCode\\Prism-Offline-File-Converter-for-Windows\\samples\\live-demo-20261020-180953\\18-docx_pdf\\Prism Word sample - document.pdf"
+    ]
+  }
+]
