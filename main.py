@@ -11,7 +11,7 @@ def log_path():
     return root / 'startup.log'
 
 def report_error(message,path):
-    text=f'Prism could not start.\n\n{message}\n\nDetails: {path}\n\nRun Debug-Prism.bat and send the displayed error.'
+    text=f'Prism could not start.\n\n{message}\n\nDetails: {path}\n\nPlease include this log when reporting the problem.'
     if sys.platform=='win32':
         import ctypes
         ctypes.windll.user32.MessageBoxW(None,text,'Prism startup error',0x10)
@@ -48,4 +48,7 @@ def launch():
 if __name__=='__main__':
     import multiprocessing
     multiprocessing.freeze_support()
+    if len(sys.argv)==4 and sys.argv[1]=='--verify-installation':
+        from prism.diagnostics import verify
+        raise SystemExit(verify(sys.argv[2],sys.argv[3]))
     launch()

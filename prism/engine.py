@@ -303,7 +303,7 @@ def ocr(path,cancel):
     try:
         from rapidocr import RapidOCR
         import numpy as np
-    except ImportError as e: raise ValueError('OCR is optional. Run Install-OCR.bat once, then restart Prism.') from e
+    except ImportError as e: raise ValueError('OCR dependencies are missing. See the README development instructions.') from e
     fontpaths=[Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts/arial.ttf',
                Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')]
     font=next((f for f in fontpaths if f.exists()),None)

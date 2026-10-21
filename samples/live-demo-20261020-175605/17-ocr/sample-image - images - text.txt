@@ -1,6 +1,0 @@
-PRISM
-Your files. A little clearer.
-Try PNG, WebP, crop or PDF.
-
-Prism makes file conversion simple.
-Review extracted text before using it.

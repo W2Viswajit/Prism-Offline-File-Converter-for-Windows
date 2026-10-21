@@ -66,3 +66,17 @@ def test_shortcut_toggles_one_wheel_and_drag_reuses_it(tmp_path,monkeypatch):
         monkeypatch.setattr('prism.widgets.left_button_down',lambda:False)
         w.wheel.check_drag_release();assert not w.wheel.isVisible()
     finally:dispose(w)
+
+def test_small_window_scrolls_and_minimize_hides_wheel(tmp_path):
+    app=QApplication.instance() or QApplication([])
+    p=tmp_path/'sample.png';Image.new('RGB',(20,20)).save(p)
+    w=Window();w.bridge.enabled=False
+    try:
+        w.add_files([str(p)]);w.resize(480,360);w.show();app.processEvents()
+        assert w.scroll.verticalScrollBar().maximum()>0
+        buttons=[b for b in w.action_host.findChildren(QPushButton) if b.isVisible()]
+        for i,b in enumerate(buttons):
+            for other in buttons[i+1:]:assert not b.geometry().intersects(other.geometry())
+        w.explorer_wheel([str(p)],False);assert w.wheel.isVisible()
+        w.showMinimized();app.processEvents();assert not w.wheel.isVisible()
+    finally:dispose(w)

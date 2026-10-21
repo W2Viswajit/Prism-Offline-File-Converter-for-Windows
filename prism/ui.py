@@ -1,8 +1,8 @@
 import os,sys,traceback,threading,json
 from pathlib import Path
-from PySide6.QtCore import Qt,QObject,Signal,QRunnable,QThreadPool,QUrl,QSettings,QTimer
+from PySide6.QtCore import Qt,QObject,Signal,QRunnable,QThreadPool,QUrl,QSettings,QTimer,QEvent,QSize
 from PySide6.QtGui import QIcon,QPixmap,QPainter,QColor,QFont,QDesktopServices,QAction
-from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QFrame,QFileDialog,QListWidget,QListWidgetItem,QAbstractItemView,QGridLayout,QMessageBox,QInputDialog,QProgressBar,QDialog,QDialogButtonBox,QPlainTextEdit,QSystemTrayIcon,QMenu,QCheckBox,QComboBox)
+from PySide6.QtWidgets import (QApplication,QMainWindow,QWidget,QVBoxLayout,QHBoxLayout,QLabel,QPushButton,QFrame,QFileDialog,QListWidget,QListWidgetItem,QAbstractItemView,QGridLayout,QMessageBox,QInputDialog,QProgressBar,QDialog,QDialogButtonBox,QPlainTextEdit,QSystemTrayIcon,QMenu,QCheckBox,QComboBox,QScrollArea)
 from .engine import run,IMAGES,SUPPORTED,Cancelled
 from .widgets import Wheel,CropDialog,PagesDialog
 from .windows import ExplorerBridge
@@ -55,9 +55,7 @@ def set_theme(choice):
     return t.dark
 
 def icon():
-    pix=QPixmap(64,64); pix.fill(Qt.transparent); p=QPainter(pix); p.setRenderHint(QPainter.Antialiasing)
-    p.setBrush(QColor('#8fc2ff')); p.setPen(Qt.NoPen); p.drawRoundedRect(3,3,58,58,17,17)
-    p.setPen(QColor('#17273e')); p.setFont(QFont('Segoe UI',28,QFont.Bold)); p.drawText(pix.rect(),Qt.AlignCenter,'P'); p.end(); return QIcon(pix)
+    return line_icon('brand','#92c5ff')
 
 class Signals(QObject):
     progress=Signal(int,int); success=Signal(list); failure=Signal(str); finished=Signal()
@@ -88,7 +86,7 @@ class DropList(QListWidget):
 
 class Window(QMainWindow):
     def __init__(self):
-        super().__init__(); self.setWindowTitle('Prism • Offline file tools'); self.setWindowIcon(icon()); self.resize(780,620); self.setMinimumSize(640,600)
+        super().__init__(); self.setWindowTitle('Prism • Offline file tools'); self.setWindowIcon(icon()); self.resize(780,620); self.setMinimumSize(480,360)
         self.settings=QSettings('Viswajit','Prism'); self.paths=[]; self.outputs=[]; self.job=None; self.wheel_paths=[]; self.wheel=Wheel()
         self.wheel.chosen.connect(self.wheel_action)
         self.wheel.dropped.connect(self.set_wheel_paths)
@@ -98,7 +96,7 @@ class Window(QMainWindow):
         self.theme_timer=QTimer(self); self.theme_timer.timeout.connect(self.refresh_theme); self.theme_timer.start(1000)
         QApplication.instance().styleHints().colorSchemeChanged.connect(self.refresh_theme)
         self.pool=QThreadPool(self); self.pool.setMaxThreadCount(1)
-        root=QWidget(); self.setCentralWidget(root); v=QVBoxLayout(root); v.setContentsMargins(16,14,16,14); v.setSpacing(12)
+        root=QWidget(); self.scroll=QScrollArea();self.scroll.setWidgetResizable(True);self.scroll.setFrameShape(QFrame.NoFrame);self.scroll.setWidget(root);self.setCentralWidget(self.scroll); v=QVBoxLayout(root); v.setContentsMargins(16,14,16,14); v.setSpacing(12)
         top=QHBoxLayout(); v.addLayout(top)
         self.brand=QLabel();self.brand.setObjectName('brandMark');self.brand.setFixedSize(32,32);self.brand.setAlignment(Qt.AlignCenter);top.addWidget(self.brand)
         title=QLabel('Prism');title.setObjectName('brand');top.addWidget(title);top.addStretch()
@@ -137,7 +135,7 @@ class Window(QMainWindow):
             if hasattr(self,"brand"):self.refresh_controls()
     def refresh_controls(self):
         t=self.appearance
-        self.brand.setPixmap(line_icon('brand',t.accent_text,24).pixmap(24,24))
+        self.brand.setPixmap(line_icon('brand',t.accent_text,24).pixmap(QSize(24,24),self.devicePixelRatioF()))
         self.settings_button.setIcon(line_icon('settings',t.muted));self.recent_button.setIcon(line_icon('history',t.muted))
         self.files.theme=t;self.files.viewport().update()
         for b in self.findChildren(ToolButton):b.refresh(t)
@@ -319,7 +317,7 @@ class Window(QMainWindow):
         c=QCheckBox('Enable Explorer shortcut and experimental Shift-drag'); c.setChecked(self.bridge.enabled); v.addWidget(c)
         t=QCheckBox('Close window to system tray'); t.setChecked(self.settings.value('tray',True,type=bool)); v.addWidget(t)
         theme=QComboBox(); theme.addItems(['System','Dark','Light']); theme.setCurrentText(self.settings.value('theme','System')); v.addWidget(QLabel('Appearance')); v.addWidget(theme)
-        text=QLabel('Fluent-inspired surfaces with a solid fallback.\nOptional: run Install-OCR.bat for OCR; install Microsoft Word or LibreOffice for DOCX.\nNo files are uploaded. No sharing or cloud service.\nExplorer integration must be verified on your Windows installation.'); text.setWordWrap(True); v.addWidget(text)
+        text=QLabel('Fluent-inspired surfaces with a solid fallback.\nOCR is included in the installer; install Microsoft Word or LibreOffice for DOCX.\nNo files are uploaded. No sharing or cloud service.\nExplorer integration must be verified on your Windows installation.'); text.setWordWrap(True); v.addWidget(text)
         b=QDialogButtonBox(QDialogButtonBox.Save|QDialogButtonBox.Cancel); v.addWidget(b); b.accepted.connect(d.accept); b.rejected.connect(d.reject)
         if d.exec()==QDialog.Accepted:
             self.bridge.enabled=c.isChecked(); self.settings.setValue('explorer',c.isChecked()); self.settings.setValue('tray',t.isChecked()); self.settings.setValue('theme',theme.currentText()); self.refresh_theme()
@@ -327,6 +325,12 @@ class Window(QMainWindow):
         if self.job:
             self.cancel_job(); QMessageBox.information(self,'Job stopping','Wait for the current operation to stop, then quit again.'); return
         self.quitting=True; self.close()
+    def changeEvent(self,e):
+        super().changeEvent(e)
+        if e.type()==QEvent.WindowStateChange and self.isMinimized() and hasattr(self,"wheel"):
+            self.wheel.hide()
+        if e.type()==QEvent.DevicePixelRatioChange and hasattr(self,"brand"):
+            self.refresh_controls()
     def closeEvent(self,e):
         self.wheel.hide()
         if self.job: self.hide(); e.ignore(); return

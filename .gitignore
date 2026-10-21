@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+build/
+dist/
+*.log
+
+# Local installers are uploaded as GitHub Release assets, not Git files.
+/Prism-*-Setup-*.exe
+
+# Generated demonstrations and verification artifacts
+/samples/*/
+/samples/* - *
+/previews/

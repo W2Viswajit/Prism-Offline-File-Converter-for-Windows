@@ -107,5 +107,9 @@ QProgressBar::chunk {{background:{t.accent}; border-radius:4px;}}
 QLineEdit,QSpinBox,QComboBox {{background:{t.surface}; border:1px solid {t.border}; padding:7px; border-radius:5px;}}
 QMenu {{background:{t.surface}; border:1px solid {t.border};}}
 QMenu::item {{padding:9px 24px;}}
+QScrollBar:vertical {{background:{t.background};width:10px;margin:2px;}}
+QScrollBar::handle:vertical {{background:{t.border};min-height:28px;border-radius:3px;}}
+QScrollBar::add-line:vertical,QScrollBar::sub-line:vertical {{height:0;}}
+QScrollBar::add-page:vertical,QScrollBar::sub-page:vertical {{background:transparent;}}
 QCheckBox {{spacing:8px;}}
 '''

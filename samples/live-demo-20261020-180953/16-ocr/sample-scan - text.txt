@@ -1,2 +1,0 @@
-Prism makes file conversion simple.
-Review extracted text before using it.

@@ -1,13 +1,12 @@
 """Compact controls with stable hover metrics and a single file-selection outline."""
 from pathlib import Path
-from PySide6.QtCore import Qt,QSize,QRectF,QEvent,Signal
-from PySide6.QtGui import QPainter,QPen,QColor,QPixmap,QIcon,QFont
+from PySide6.QtCore import Qt,QSize,QRectF,QEvent,Signal,QPointF
+from PySide6.QtGui import QPainter,QPen,QColor,QPixmap,QIcon,QFont,QIconEngine,QPolygonF
 from PySide6.QtWidgets import QStyledItemDelegate,QStyle,QPushButton,QVBoxLayout,QLabel
 from .theme import appearance,tint
 
-def line_icon(kind,color,size=20):
-    pix=QPixmap(size,size); pix.fill(Qt.transparent)
-    p=QPainter(pix); p.setRenderHint(QPainter.Antialiasing); p.scale(size/24,size/24)
+def paint_icon(p,kind,color):
+    p.setRenderHint(QPainter.Antialiasing)
     p.setPen(QPen(QColor(color),1.5,Qt.SolidLine,Qt.RoundCap,Qt.RoundJoin))
     p.setBrush(Qt.NoBrush)
     if kind=='crop':
@@ -26,11 +25,27 @@ def line_icon(kind,color,size=20):
     elif kind=='settings':
         for y,x in [(6,9),(12,16),(18,7)]:p.drawLine(3,y,21,y);p.setBrush(QColor(color));p.drawEllipse(x-2,y-2,4,4);p.setBrush(Qt.NoBrush)
     elif kind=='brand':
-        p.drawEllipse(3,3,18,18)
-        for a,b,c,d in [(3,12,15,12),(9,4,15,15),(20,7,14,18),(20,17,9,17),(10,21,5,10)]:p.drawLine(a,b,c,d)
+        p.setBrush(QColor(color));p.drawPolygon(QPolygonF([QPointF(12,3),QPointF(3,20),QPointF(21,20)]))
+        p.setPen(QPen(QColor('#101827'),1.2));p.drawLine(12,3,12,15);p.drawLine(3,20,12,15);p.drawLine(12,15,21,20)
+        for y,c in [(10,'#ffbd69'),(13,'#8de0cf'),(16,'#91baff')]:
+            p.setPen(QPen(QColor(c),1.7,Qt.SolidLine,Qt.RoundCap));p.drawLine(16,y,23,y+2)
     else:
         p.drawRoundedRect(QRectF(6,3,13,18),2,2);p.drawLine(9,9,16,9);p.drawLine(9,13,16,13)
-    p.end();return QIcon(pix)
+
+class VectorIcon(QIconEngine):
+    def __init__(self,kind,color):super().__init__();self.kind=kind;self.color=color
+    def clone(self):return VectorIcon(self.kind,self.color)
+    def paint(self,p,rect,mode,state):
+        p.save();p.translate(rect.x(),rect.y());p.scale(rect.width()/24,rect.height()/24)
+        paint_icon(p,self.kind,self.color);p.restore()
+    def pixmap(self,size,mode,state):
+        pix=QPixmap(size);pix.fill(Qt.transparent);p=QPainter(pix)
+        self.paint(p,pix.rect(),mode,state);p.end();return pix
+    def scaledPixmap(self,size,mode,state,scale):
+        pix=self.pixmap(size*scale,mode,state);pix.setDevicePixelRatio(scale);return pix
+
+def line_icon(kind,color,size=20):return QIcon(VectorIcon(kind,color))
+
 
 class ToolButton(QPushButton):
     def __init__(self,key,label,parent=None):
@@ -42,7 +57,7 @@ class ToolButton(QPushButton):
         for widget in (self.symbol,self.caption):
             widget.setAttribute(Qt.WA_TransparentForMouseEvents);layout.addWidget(widget)
         self.refresh(appearance())
-    def refresh(self,t): self.symbol.setPixmap(line_icon(self.key,t.text,18).pixmap(18,18))
+    def refresh(self,t): self.symbol.setPixmap(line_icon(self.key,t.text,18).pixmap(QSize(18,18),self.devicePixelRatioF()))
 
 class FileDelegate(QStyledItemDelegate):
     def __init__(self,view): super().__init__(view);self.view=view

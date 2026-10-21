@@ -1,14 +1,7 @@
-# Dependencies
+# Third-party dependencies
 
-This ZIP contains original application source and generated samples/previews.
-Setup downloads dependencies from the Python package index. Those dependencies
-retain their own copyright and license terms; they are not relicensed by this app.
+Prism uses Python, PySide6/Qt, Pillow, pypdf, pypdfium2/PDFium, ReportLab and pywin32. Offline OCR uses RapidOCR, ONNX Runtime and their dependencies/models. Microsoft Word or LibreOffice may be used from an existing local installation; neither is bundled.
 
-Base: PySide6/Qt, Pillow, pypdf, pypdfium2/PDFium, ReportLab, pywin32.
-Optional: RapidOCR, ONNX Runtime and their transitive dependencies; LibreOffice.
-Build tooling: PyInstaller.
+Dependencies retain their respective copyrights and license terms. The installer build collects dependency license and notice files into the application's `_internal/licenses` directory. Review applicable library, runtime and model licenses before redistribution; this list is not a legal compliance audit.
 
-Before distributing compiled builds, retain the applicable license files and
-notices, including those from Qt/PySide6 and bundled native libraries. Review the
-installed packages' LICENSE files and distribution metadata. This source ZIP is
-not a compliance audit or a signed commercial release.
+Build tools: PyInstaller and Inno Setup. See [packaging instructions](packaging/README.md) for release requirements.
